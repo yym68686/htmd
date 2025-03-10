@@ -123,7 +123,8 @@ pre code {
     overflow-x: auto;
     font-family: 'Menlo', 'Monaco', 'Courier New', monospace;
     font-size: 13px;
-    line-height: 1.5;
+    /* line-height: 1.5; */
+    line-height: 1rem;
     tab-size: 4;
     -webkit-font-smoothing: auto;
     border-radius: 8px;
@@ -193,6 +194,11 @@ pre::before {
     background-color: var(--cerebr-code-tag-bg);
     border-bottom-left-radius: 8px;
     opacity: 0.5;
+}
+
+/* 为所有的语法高亮元素添加统一字体 */
+pre code [class^="hljs-"] {
+    font-family: "JetBrains Mono", Monaco, Consolas, "Andale Mono", "DejaVu Sans Mono", monospace;
 }
 
 /* 浅色模式代码高亮 */
