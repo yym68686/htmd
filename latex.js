@@ -21,6 +21,11 @@ export function processMathAndMarkdown(text) {
         return mathdsMap[char] || match;
     });
 
+    // 替换行首的 \begin{align*} 为 \[
+    text = text.replace(/^\s*\\begin\{align\*\}/gm, '\\[\n\\begin{align*}');
+    // 替换行尾的 \end{align*} 为 \]
+    text = text.replace(/\\end\{align\*\}\s*$/gm, '\\end{align*}\n\\]');
+
     // 处理 \boxed 命令，将其包装在 \[ \] 中
     text = text.replace(/(\\\[\s*)?\\boxed\{([^}]+)\}(\s*\\\])?/g, '\\[\\boxed{$2}\\]');
 
@@ -126,6 +131,7 @@ export function processMathAndMarkdown(text) {
     text = text.replace(/(\*\*.+?\*\*)\s,/g, '$1,');
     text = text.replace(/(\*\*.+?\*\*)\s\./g, '$1.');
     text = text.replace(/(\*\*.+?\*\*)\s。/g, '$1。');
+
     // console.log(text);
 /*
 完整复述下面的字符包括换行：
