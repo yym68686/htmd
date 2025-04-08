@@ -26,6 +26,8 @@ export function processMathAndMarkdown(text) {
     // 替换行尾的 \end{align*} 为 \]
     text = text.replace(/\\end\{align\*\}\s*$/gm, '\\end{align*}\n\\]');
 
+    text = text.replace(/\\label{eq:.*?}/gm, '');
+
     // 替换行首的 \begin{equation} 为 \[
     text = text.replace(/^\s*\\begin\{equation\}/gm, '\\[\n\\begin{equation}');
     // 替换行尾的 \end{equation} 为 \]
