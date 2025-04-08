@@ -26,6 +26,11 @@ export function processMathAndMarkdown(text) {
     // 替换行尾的 \end{align*} 为 \]
     text = text.replace(/\\end\{align\*\}\s*$/gm, '\\end{align*}\n\\]');
 
+    // 替换行首的 \begin{equation} 为 \[
+    text = text.replace(/^\s*\\begin\{equation\}/gm, '\\[\n\\begin{equation}');
+    // 替换行尾的 \end{equation} 为 \]
+    text = text.replace(/\\end\{equation\}\s*$/gm, '\\end{equation}\n\\]');
+
     // 处理 \boxed 命令，将其包装在 \[ \] 中
     text = text.replace(/(\\\[\s*)?\\boxed\{([^}]+)\}(\s*\\\])?/g, '\\[\\boxed{$2}\\]');
 
