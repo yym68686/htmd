@@ -72,6 +72,9 @@ export function processMathAndMarkdown(text) {
         match = match.replace(/>/g, '&gt;');
         match = match.replace(/%\s/g, '');
 
+        // 处理 \bm 命令，将其替换为 \boldsymbol 粗体向量
+        match = match.replace(/\\bm\{([^{}]+)\}/g, '\\boldsymbol{$1}');
+
         // 如果是普通括号形式公式，转换为 \(...\) 形式
         if (match.startsWith('(') && match.endsWith(')') && !match.startsWith('\\(')) {
             console.log('警告：请使用 \\(...\\) 来表示行内公式');
