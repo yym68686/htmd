@@ -34,7 +34,7 @@ export function processMathAndMarkdown(text) {
     text = text.replace(/\\end\{equation\}\s*$/gm, '\\end{equation}\n\\]');
 
     // 处理 \boxed 命令，将其包装在 \[ \] 中
-    text = text.replace(/(\\\[\s*)?\\boxed\{([^}]+)\}(\s*\\\])?/g, '\\[\\boxed{$2}\\]');
+    text = text.replace(/(\\\[\s*)?\$*\\boxed\{([\s\S]+)\}\$*(\s*\\\])?/g, '\\[\\boxed{$2}\\]');
 
     text = text.replace(/^---\n$/gm, '');
 
