@@ -1,7 +1,18 @@
 // 处理数学公式和 Markdown 的函数
 export function processMathAndMarkdown(text) {
     const mathExpressions = [];
+    const imageExpressions = [];
     let mathIndex = 0;
+    let imageIndex = 0;
+
+    // 预处理，提取图片标签
+    text = text.replace(/<span class="image-tag".*?<\/span>/g, (match) => {
+        const placeholder = `%%IMAGE_EXPRESSION_${imageIndex}%%`;
+        imageExpressions.push(match);
+        imageIndex++;
+        return placeholder;
+    });
+
     text = text.replace(/\\\[([a-zA-Z\d]+)\]/g, '[$1]');
 
     // 添加 \mathds 字符映射
@@ -179,6 +190,11 @@ export function processMathAndMarkdown(text) {
     // 恢复数学公式
     html = html.replace(/%%MATH_EXPRESSION_(\d+)%%/g, (_, index) => {
         return mathExpressions[index];
+    });
+
+    // 恢复图片
+    html = html.replace(/%%IMAGE_EXPRESSION_(\d+)%%/g, (_, index) => {
+        return imageExpressions[index];
     });
 
     // 移除数学公式容器外的 p 标签
