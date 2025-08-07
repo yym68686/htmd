@@ -1,6 +1,7 @@
 /* 代码相关的CSS变量 */
 :root {
     /* 代码块变量 - 浅色模式 */
+    --cerebr-table-border-color: #e1e4e8;
     --cerebr-code-block-bg: #f6f8fa;
     --cerebr-code-block-color: #24292e;
     --cerebr-code-block-border: #e1e4e8;
@@ -37,6 +38,7 @@
 /* 深色主题变量 */
 :root.dark-theme {
     /* 代码块变量 - 深色模式 */
+    --cerebr-table-border-color: #4b5263;
     --cerebr-code-block-bg: #282c34;
     --cerebr-code-block-color: #abb2bf;
     --cerebr-code-block-border: transparent;
@@ -74,6 +76,7 @@
 @media (prefers-color-scheme: dark) {
     :root:not(.light-theme) {
         /* 代码块变量 - 系统深色模式 */
+        --cerebr-table-border-color: #4b5263;
         --cerebr-code-block-bg: #282c34;
         --cerebr-code-block-color: #abb2bf;
         --cerebr-code-block-border: transparent;
