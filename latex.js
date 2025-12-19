@@ -1,4 +1,11 @@
 // 处理数学公式和 Markdown 的函数
+let markedConfigured = false;
+
+export function textMayContainMath(text) {
+    if (!text) return false;
+    const str = String(text);
+    return /(\\\(|\\\[|\$\$|\\begin\{|\\boxed\{)/.test(str);
+}
 export function processMathAndMarkdown(text) {
     const mathExpressions = [];
     const imageExpressions = [];
@@ -102,43 +109,46 @@ export function processMathAndMarkdown(text) {
         return placeholder;
     });
 
-    // 配置 marked
-    marked.setOptions({
-        breaks: true,
-        gfm: true,
-        sanitize: false,
-        highlight: function(code, lang) {
-            if (lang === 'mermaid') {
-                return `<div class="mermaid">${code}</div>`;
-            }
-            if (lang && hljs.getLanguage(lang)) {
-                try {
-                    return hljs.highlight(code, { language: lang }).value;
-                } catch (err) {
-                    console.error('代码高亮错误:', err);
-                }
-            }
-            return hljs.highlightAuto(code).value;
-        },
-        renderer: Object.assign(new marked.Renderer(), {
-            code(code, language) {
-                // 检查是否包含数学表达式占位符
-                if (code.includes('%%MATH_EXPRESSION_')) {
-                    return code;  // 如果包含数学表达式，直接返回原文本
-                }
-                if (language === 'mermaid') {
+    // 配置 marked（只初始化一次）
+    if (!markedConfigured) {
+        marked.setOptions({
+            breaks: true,
+            gfm: true,
+            sanitize: false,
+            highlight: function(code, lang) {
+                if (lang === 'mermaid') {
                     return `<div class="mermaid">${code}</div>`;
                 }
-                const validLanguage = language && hljs.getLanguage(language) ? language : '';
-                const highlighted = this.options.highlight(code, validLanguage);
-                return `<pre data-language="${validLanguage || 'plaintext'}"><code>${highlighted}</code></pre>`;
+                if (lang && hljs.getLanguage(lang)) {
+                    try {
+                        return hljs.highlight(code, { language: lang }).value;
+                    } catch (err) {
+                        console.error('代码高亮错误:', err);
+                    }
+                }
+                return hljs.highlightAuto(code).value;
             },
-            listitem(text) {
-                // 保持列表项的原始格式
-                return `<li>${text}</li>\n`;
-            }
-        })
-    });
+            renderer: Object.assign(new marked.Renderer(), {
+                code(code, language) {
+                    // 检查是否包含数学表达式占位符
+                    if (code.includes('%%MATH_EXPRESSION_')) {
+                        return code;  // 如果包含数学表达式，直接返回原文本
+                    }
+                    if (language === 'mermaid') {
+                        return `<div class="mermaid">${code}</div>`;
+                    }
+                    const validLanguage = language && hljs.getLanguage(language) ? language : '';
+                    const highlighted = this.options.highlight(code, validLanguage);
+                    return `<pre data-language="${validLanguage || 'plaintext'}"><code>${highlighted}</code></pre>`;
+                },
+                listitem(text) {
+                    // 保持列表项的原始格式
+                    return `<li>${text}</li>\n`;
+                }
+            })
+        });
+        markedConfigured = true;
+    }
 
     text = text.replace(/:\s\*\*/g, ':**');
     text = text.replace(/\*\*([^*]+?)\*\*[^\S\n]+/g, '@@$1@@#');
