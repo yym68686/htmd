@@ -21,7 +21,10 @@ function scheduleMermaidRender() {
 export function textMayContainMath(text) {
     if (!text) return false;
     const str = String(text);
-    return /(\\\(|\\\[|\$\$|\\begin\{|\\boxed\{)/.test(str);
+    if (/(\\\(|\\\[|\$\$|\\begin\{|\\boxed\{)/.test(str)) return true;
+    // Detect inline $...$ (paired unescaped $) so MathJax can typeset it.
+    const unescapedDollars = str.match(/(^|[^\\])\$/g);
+    return (unescapedDollars?.length ?? 0) >= 2;
 }
 export function processMathAndMarkdown(text) {
     const mathExpressions = [];
@@ -96,8 +99,8 @@ export function processMathAndMarkdown(text) {
 
     text = text.replace(/%\n\s*/g, ''); // 移除换行的百分号
     text = text.replace(/（\\\((.+?)\\）/g, '（\\($1\\)）');
-    // 临时替换数学公式
-    text = text.replace(/(\\\\\([^]+?\\\\\))|(\\\([^]+?\\\))|(\\\[[\s\S]+?\\\])|(\$\$[\s\S]+?\$\$)/g, (match) => {
+    // 临时替换数学公式（支持 \(..\)、\[..\]、$$..$$ 以及单行内联 $..$）
+    text = text.replace(/(\\\\\([^]+?\\\\\))|(\\\([^]+?\\\))|(\\\[[\s\S]+?\\\])|(\$\$[\s\S]+?\$\$)|(\$(?!\$)[^\n]*?\$)/g, (match) => {
         // 处理除号
         match = match.replace(/\\div\b/g, ' ÷ ');
         match = match.replace(/\\\[\s*(.+?)\s*\\+\]/g, '\\[ $1 \\]');
@@ -109,6 +112,10 @@ export function processMathAndMarkdown(text) {
 
         // 处理 \bm 命令，将其替换为 \boldsymbol 粗体向量
         match = match.replace(/\\bm\{([^{}]+)\}/g, '\\boldsymbol{$1}');
+        match = match.replace(/\\bm\s*(\\[A-Za-z]+|[A-Za-z0-9])/g, '\\boldsymbol{$1}');
+
+        // 处理 \coloneqq 命令（避免依赖额外 TeX 包）
+        match = match.replace(/\\coloneqq\b/g, '\\mathrel{:=}');
 
         // 如果是普通括号形式公式，转换为 \(...\) 形式
         if (match.startsWith('(') && match.endsWith(')') && !match.startsWith('\\(')) {
