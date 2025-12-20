@@ -1,5 +1,22 @@
 // 处理数学公式和 Markdown 的函数
 let markedConfigured = false;
+let mermaidRenderScheduled = false;
+
+function scheduleMermaidRender() {
+    if (mermaidRenderScheduled) return;
+    mermaidRenderScheduled = true;
+    const run = () => {
+        mermaidRenderScheduled = false;
+        if (window.renderMermaidDiagrams) {
+            window.renderMermaidDiagrams();
+        }
+    };
+    if (typeof requestIdleCallback === 'function') {
+        requestIdleCallback(run, { timeout: 300 });
+    } else {
+        setTimeout(run, 0);
+    }
+}
 
 export function textMayContainMath(text) {
     if (!text) return false;
@@ -210,12 +227,10 @@ export function processMathAndMarkdown(text) {
     // 移除数学公式容器外的 p 标签
     html = html.replace(/<p>\s*(<div class="math-display-container">[\s\S]*?<\/div>)\s*<\/p>/g, '$1');
 
-    // 在下一个微任务中渲染 Mermaid 图表
-    setTimeout(() => {
-        if (window.renderMermaidDiagrams) {
-            window.renderMermaidDiagrams();
-        }
-    }, 0);
+    // 仅在确实包含 Mermaid 图表时再调度渲染，避免每次消息都触发
+    if (/class=["']mermaid["']/.test(html)) {
+        scheduleMermaidRender();
+    }
 
     return html;
 }
