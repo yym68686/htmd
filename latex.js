@@ -18,13 +18,243 @@ function scheduleMermaidRender() {
     }
 }
 
+function isEscapedByBackslash(str, index) {
+    let backslashCount = 0;
+    for (let i = index - 1; i >= 0 && str[i] === '\\'; i--) {
+        backslashCount++;
+    }
+    return (backslashCount % 2) === 1;
+}
+
+function isAsciiWordChar(ch) {
+    return !!ch && /[A-Za-z0-9_]/.test(ch);
+}
+
+function isWhitespaceChar(ch) {
+    return !!ch && /\s/.test(ch);
+}
+
+function isSingleDollarDelimiter(str, index) {
+    if (str[index] !== '$') return false;
+    if (isEscapedByBackslash(str, index)) return false;
+    if (str[index - 1] === '$' || str[index + 1] === '$') return false;
+    return true;
+}
+
+function isLikelyInlineDollarMath(content, beforeOpen, afterOpen, beforeClose, afterClose) {
+    if (!content) return false;
+    if (!afterOpen || isWhitespaceChar(afterOpen)) return false;
+    if (beforeOpen && isAsciiWordChar(beforeOpen)) return false;
+    if (!beforeClose || isWhitespaceChar(beforeClose)) return false;
+    if (afterClose && isAsciiWordChar(afterClose)) return false;
+
+    if (/^\d[\d,]*(?:\.\d+)?$/.test(content)) return false;
+    if (/^[A-Z][A-Z0-9]{1,14}$/.test(content)) return false;
+
+    const hasTeXCommand = /\\[A-Za-z]/.test(content);
+    const hasLowercase = /[a-z]/.test(content);
+    const isSingleUppercaseLetter = /^[A-Z]$/.test(content);
+    const hasDigitsAndLetters = /\d/.test(content) && /[A-Za-z]/.test(content);
+    const hasMathOperators = /[=<>^_{}+\-*/]/.test(content);
+
+    if (/\s/.test(content) && !hasTeXCommand && !hasMathOperators) return false;
+    return hasTeXCommand || hasLowercase || isSingleUppercaseLetter || hasDigitsAndLetters || hasMathOperators;
+}
+
+function findClosingDollarInLine(line, startIndex) {
+    let inCode = false;
+    let codeDelimiterLen = 0;
+
+    for (let i = startIndex; i < line.length; i++) {
+        const ch = line[i];
+        if (ch === '`') {
+            let j = i;
+            while (j < line.length && line[j] === '`') j++;
+            const tickLen = j - i;
+            if (!inCode) {
+                inCode = true;
+                codeDelimiterLen = tickLen;
+            } else if (tickLen === codeDelimiterLen) {
+                inCode = false;
+                codeDelimiterLen = 0;
+            }
+            i = j - 1;
+            continue;
+        }
+
+        if (!inCode && ch === '$' && isSingleDollarDelimiter(line, i)) {
+            return i;
+        }
+    }
+
+    return -1;
+}
+
+function convertInlineDollarMathToParensInLine(line) {
+    let out = '';
+    let inCode = false;
+    let codeDelimiterLen = 0;
+
+    for (let i = 0; i < line.length; i++) {
+        const ch = line[i];
+
+        if (ch === '`') {
+            let j = i;
+            while (j < line.length && line[j] === '`') j++;
+            const tickLen = j - i;
+            if (!inCode) {
+                inCode = true;
+                codeDelimiterLen = tickLen;
+            } else if (tickLen === codeDelimiterLen) {
+                inCode = false;
+                codeDelimiterLen = 0;
+            }
+            out += line.slice(i, j);
+            i = j - 1;
+            continue;
+        }
+
+        if (!inCode && ch === '$' && isSingleDollarDelimiter(line, i)) {
+            const closeIndex = findClosingDollarInLine(line, i + 1);
+            if (closeIndex !== -1) {
+                const content = line.slice(i + 1, closeIndex);
+                const beforeOpen = i > 0 ? line[i - 1] : '';
+                const afterOpen = line[i + 1] ?? '';
+                const beforeClose = closeIndex > 0 ? line[closeIndex - 1] : '';
+                const afterClose = line[closeIndex + 1] ?? '';
+
+                if (isLikelyInlineDollarMath(content, beforeOpen, afterOpen, beforeClose, afterClose)) {
+                    out += `\\(${content}\\)`;
+                    i = closeIndex;
+                    continue;
+                }
+            }
+        }
+
+        out += ch;
+    }
+
+    return out;
+}
+
+function convertInlineDollarMathToParens(text) {
+    const str = String(text ?? '');
+    if (!str) return str;
+
+    const lines = str.split('\n');
+    const outLines = [];
+
+    let inFence = false;
+    let fenceChar = '';
+    let fenceLen = 0;
+    let fenceCloseRe = null;
+
+    for (const line of lines) {
+        if (inFence) {
+            if (fenceCloseRe && fenceCloseRe.test(line)) {
+                inFence = false;
+                fenceChar = '';
+                fenceLen = 0;
+                fenceCloseRe = null;
+            }
+            outLines.push(line);
+            continue;
+        }
+
+        const fenceOpen = line.match(/^ {0,3}(```+|~~~+)/);
+        if (fenceOpen) {
+            const fence = fenceOpen[1];
+            fenceChar = fence[0];
+            fenceLen = fence.length;
+            fenceCloseRe = new RegExp(`^ {0,3}${fenceChar}{${fenceLen},}(?:\\s|$)`);
+            inFence = true;
+            outLines.push(line);
+            continue;
+        }
+
+        outLines.push(convertInlineDollarMathToParensInLine(line));
+    }
+
+    return outLines.join('\n');
+}
+
+function textMayContainInlineDollarMath(text) {
+    const str = String(text ?? '');
+    if (!str) return false;
+
+    const lines = str.split('\n');
+
+    let inFence = false;
+    let fenceChar = '';
+    let fenceLen = 0;
+    let fenceCloseRe = null;
+
+    for (const line of lines) {
+        if (inFence) {
+            if (fenceCloseRe && fenceCloseRe.test(line)) {
+                inFence = false;
+                fenceChar = '';
+                fenceLen = 0;
+                fenceCloseRe = null;
+            }
+            continue;
+        }
+
+        const fenceOpen = line.match(/^ {0,3}(```+|~~~+)/);
+        if (fenceOpen) {
+            const fence = fenceOpen[1];
+            fenceChar = fence[0];
+            fenceLen = fence.length;
+            fenceCloseRe = new RegExp(`^ {0,3}${fenceChar}{${fenceLen},}(?:\\s|$)`);
+            inFence = true;
+            continue;
+        }
+
+        let inCode = false;
+        let codeDelimiterLen = 0;
+
+        for (let i = 0; i < line.length; i++) {
+            const ch = line[i];
+            if (ch === '`') {
+                let j = i;
+                while (j < line.length && line[j] === '`') j++;
+                const tickLen = j - i;
+                if (!inCode) {
+                    inCode = true;
+                    codeDelimiterLen = tickLen;
+                } else if (tickLen === codeDelimiterLen) {
+                    inCode = false;
+                    codeDelimiterLen = 0;
+                }
+                i = j - 1;
+                continue;
+            }
+
+            if (!inCode && ch === '$' && isSingleDollarDelimiter(line, i)) {
+                const closeIndex = findClosingDollarInLine(line, i + 1);
+                if (closeIndex === -1) continue;
+
+                const content = line.slice(i + 1, closeIndex);
+                const beforeOpen = i > 0 ? line[i - 1] : '';
+                const afterOpen = line[i + 1] ?? '';
+                const beforeClose = closeIndex > 0 ? line[closeIndex - 1] : '';
+                const afterClose = line[closeIndex + 1] ?? '';
+
+                if (isLikelyInlineDollarMath(content, beforeOpen, afterOpen, beforeClose, afterClose)) {
+                    return true;
+                }
+            }
+        }
+    }
+
+    return false;
+}
+
 export function textMayContainMath(text) {
     if (!text) return false;
     const str = String(text);
     if (/(\\\(|\\\[|\$\$|\\begin\{|\\boxed\{)/.test(str)) return true;
-    // Detect inline $...$ (paired unescaped $) so MathJax can typeset it.
-    const unescapedDollars = str.match(/(^|[^\\])\$/g);
-    return (unescapedDollars?.length ?? 0) >= 2;
+    return textMayContainInlineDollarMath(str);
 }
 export function processMathAndMarkdown(text) {
     const mathExpressions = [];
@@ -99,8 +329,10 @@ export function processMathAndMarkdown(text) {
 
     text = text.replace(/%\n\s*/g, ''); // 移除换行的百分号
     text = text.replace(/（\\\((.+?)\\）/g, '（\\($1\\)）');
+
+    text = convertInlineDollarMathToParens(text);
     // 临时替换数学公式（支持 \(..\)、\[..\]、$$..$$ 以及单行内联 $..$）
-    text = text.replace(/(\\\\\([^]+?\\\\\))|(\\\([^]+?\\\))|(\\\[[\s\S]+?\\\])|(\$\$[\s\S]+?\$\$)|(\$(?!\$)[^\n]*?\$)/g, (match) => {
+    text = text.replace(/(\\\\\([^]+?\\\\\))|(\\\([^]+?\\\))|(\\\[[\s\S]+?\\\])|(\$\$[\s\S]+?\$\$)/g, (match) => {
         // 处理除号
         match = match.replace(/\\div\b/g, ' ÷ ');
         match = match.replace(/\\\[\s*(.+?)\s*\\+\]/g, '\\[ $1 \\]');
