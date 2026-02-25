@@ -48,7 +48,7 @@ function isLikelyInlineDollarMath(content, beforeOpen, afterOpen, beforeClose, a
     if (!beforeClose || isWhitespaceChar(beforeClose)) return false;
     if (afterClose && isAsciiWordChar(afterClose)) return false;
 
-    if (/^\d[\d,]*(?:\.\d+)?$/.test(content)) return false;
+    const isNumber = /^[+-]?\d[\d,]*(?:\.\d+)?$/.test(content);
     if (/^[A-Z][A-Z0-9]{1,14}$/.test(content)) return false;
     if (/^[A-Z0-9]{2,15}(?:[\\/\\-][A-Z0-9]{2,15})+$/.test(content)) return false;
 
@@ -56,10 +56,10 @@ function isLikelyInlineDollarMath(content, beforeOpen, afterOpen, beforeClose, a
     const hasLowercase = /[a-z]/.test(content);
     const isSingleUppercaseLetter = /^[A-Z]$/.test(content);
     const hasDigitsAndLetters = /\d/.test(content) && /[A-Za-z]/.test(content);
-    const hasMathOperators = /[=<>^_{}+\-*/|()[\]]/.test(content);
+    const hasMathOperators = /[=<>^_{}+\-*/|()[\]:]/.test(content);
 
     if (/\s/.test(content) && !hasTeXCommand && !hasMathOperators) return false;
-    return hasTeXCommand || hasLowercase || isSingleUppercaseLetter || hasDigitsAndLetters || hasMathOperators;
+    return hasTeXCommand || hasLowercase || isSingleUppercaseLetter || hasDigitsAndLetters || hasMathOperators || isNumber;
 }
 
 function findClosingDollarInLine(line, startIndex) {
