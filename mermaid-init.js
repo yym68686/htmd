@@ -1,42 +1,50 @@
-// 初始化 Mermaid
-window.addEventListener('DOMContentLoaded', () => {
-    // 定义自定义主题
-    const darkTheme = {
-        dark: {
-            background: 'transparent',
-            primaryColor: '#fff',
-            primaryTextColor: '#fff',
-            primaryBorderColor: '#7C7C7C',
-            lineColor: '#7C7C7C',
-            secondaryColor: '#2A2A2A',
-            tertiaryColor: '#2A2A2A',
-            textColor: '#fff',
-            mainBkg: '#1E1E1E',
-            nodeBorder: '#7C7C7C',
-            edgeLabelBackground: '#1E1E1E',
-        }
-    };
+const darkTheme = {
+    dark: {
+        background: 'transparent',
+        primaryColor: '#fff',
+        primaryTextColor: '#fff',
+        primaryBorderColor: '#7C7C7C',
+        lineColor: '#7C7C7C',
+        secondaryColor: '#2A2A2A',
+        tertiaryColor: '#2A2A2A',
+        textColor: '#fff',
+        mainBkg: '#1E1E1E',
+        nodeBorder: '#7C7C7C',
+        edgeLabelBackground: '#1E1E1E',
+    }
+};
 
-    const lightTheme = {
-        default: {
-            background: 'transparent',
-            primaryColor: '#000',
-            primaryTextColor: '#000',
-            primaryBorderColor: '#CCCCCC',
-            lineColor: '#CCCCCC',
-            secondaryColor: '#F5F5F5',
-            tertiaryColor: '#F5F5F5',
-            textColor: '#000',
-            mainBkg: '#FFFFFF',
-            nodeBorder: '#CCCCCC',
-            edgeLabelBackground: '#FFFFFF',
-        }
-    };
+const lightTheme = {
+    default: {
+        background: 'transparent',
+        primaryColor: '#000',
+        primaryTextColor: '#000',
+        primaryBorderColor: '#CCCCCC',
+        lineColor: '#CCCCCC',
+        secondaryColor: '#F5F5F5',
+        tertiaryColor: '#F5F5F5',
+        textColor: '#000',
+        mainBkg: '#FFFFFF',
+        nodeBorder: '#CCCCCC',
+        edgeLabelBackground: '#FFFFFF',
+    }
+};
+
+function resolveMermaidDarkMode() {
+    const root = document.documentElement;
+    if (root.classList.contains('dark-theme')) return true;
+    if (root.classList.contains('light-theme')) return false;
+    return typeof window.matchMedia === 'function'
+        && window.matchMedia('(prefers-color-scheme: dark)').matches;
+}
+
+window.initializeCerebrMermaid = (isDark = resolveMermaidDarkMode()) => {
+    if (!window.mermaid) return;
 
     window.mermaid.initialize({
         startOnLoad: false,
-        theme: document.documentElement.classList.contains('dark-theme') ? 'dark' : 'default',
-        themeVariables: document.documentElement.classList.contains('dark-theme') ? darkTheme.dark : lightTheme.default,
+        theme: isDark ? 'dark' : 'default',
+        themeVariables: isDark ? darkTheme.dark : lightTheme.default,
         securityLevel: 'loose',
         maxTextSize: 90000, // 增加最大文本大小限制
         flowchart: {
@@ -57,6 +65,11 @@ window.addEventListener('DOMContentLoaded', () => {
             useMaxWidth: false
         }
     });
+};
+
+// 初始化 Mermaid
+window.addEventListener('DOMContentLoaded', () => {
+    window.initializeCerebrMermaid();
 });
 
 // 添加全局渲染函数
