@@ -67,10 +67,17 @@ window.initializeCerebrMermaid = (isDark = resolveMermaidDarkMode()) => {
     });
 };
 
-// 初始化 Mermaid
-window.addEventListener('DOMContentLoaded', () => {
+// 初始化 Mermaid。
+// 这个文件现在只在第一次真的要渲染图表时才被注入（见 htmd/latex.js 的 ensureMermaidReady），
+// 那时 DOMContentLoaded 早就过去了，所以不能再挂在事件上等——由加载方直接调用。
+// 兼容仍用 <script> 静态引入本文件的场景：DOM 没就绪时退回事件。
+if (document.readyState === 'loading') {
+    window.addEventListener('DOMContentLoaded', () => {
+        window.initializeCerebrMermaid();
+    }, { once: true });
+} else {
     window.initializeCerebrMermaid();
-});
+}
 
 // 添加全局渲染函数
 window.renderMermaidDiagrams = async () => {
