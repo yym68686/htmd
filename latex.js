@@ -231,7 +231,7 @@ function isLikelyInlineDollarMath(content, beforeOpen, afterOpen, beforeClose, a
     if (!beforeClose || isWhitespaceChar(beforeClose)) return false;
     if (afterClose && isAsciiWordChar(afterClose)) return false;
 
-    const isNumber = /^[+-]?\d[\d,]*(?:\.\d+)?$/.test(content);
+    const isNumber = /^[+-]?\d[\d,]*(?:\.\d+)?(?:\\?%)?$/.test(content);
     if (/^[A-Z][A-Z0-9]{1,14}$/.test(content)) return false;
     if (/^[A-Z0-9]{2,15}(?:[\\/\\-][A-Z0-9]{2,15})+$/.test(content)) return false;
 
@@ -440,6 +440,19 @@ export function textMayContainMath(text) {
     if (/(\\\(|\\\[|\$\$|\\begin\{|\\boxed\{)/.test(str)) return true;
     return textMayContainInlineDollarMath(str);
 }
+
+// Models often write a bare percent in a standalone numeric formula. TeX
+// treats it as a comment, so normalize only this unambiguous case. Keep real
+// TeX comments and already escaped percentages in other formulas unchanged.
+function normalizeNumericPercentage(expression) {
+    const delimiters = [['\\(', '\\)'], ['\\\\(', '\\\\)'], ['\\[', '\\]'], ['$$', '$$']];
+    const pair = delimiters.find(([open, close]) => expression.startsWith(open) && expression.endsWith(close));
+    if (!pair) return expression;
+    const [open, close] = pair;
+    const content = expression.slice(open.length, -close.length);
+    if (!/^\s*[+-]?\d[\d,]*(?:\.\d+)?%\s*$/.test(content)) return expression;
+    return open + content.replace('%', '\\%') + close;
+}
 // \mathds 字符映射（提到模块作用域，避免每次解析都重建对象）
 const MATHDS_MAP = {
     'A': '𝔸', 'B': '𝔹', 'C': 'ℂ', 'D': '𝔻', 'E': '𝔼',
@@ -537,9 +550,6 @@ export function processMathAndMarkdown(text) {
         });
     }
 
-    if (text.indexOf('%') !== -1) {
-        text = text.replace(/%\n\s*/g, ''); // 移除换行的百分号
-    }
     if (text.indexOf('（') !== -1) {
         text = text.replace(/（\\\((.+?)\\）/g, '（\\($1\\)）');
     }
@@ -547,6 +557,7 @@ export function processMathAndMarkdown(text) {
     text = convertInlineDollarMathToParens(text);
     // 临时替换数学公式（支持 \(..\)、\[..\]、$$..$$ 以及单行内联 $..$）
     text = text.replace(/(\\\\\([^]+?\\\\\))|(\\\([^]+?\\\))|(\\\[[\s\S]+?\\\])|(\$\$[\s\S]+?\$\$)/g, (match) => {
+        match = normalizeNumericPercentage(match);
         // 处理除号
         match = match.replace(/\\div\b/g, ' ÷ ');
         match = match.replace(/\\\[\s*(.+?)\s*\\+\]/g, '\\[ $1 \\]');
@@ -554,7 +565,6 @@ export function processMathAndMarkdown(text) {
         match = match.replace(/\\\(\s*(.+?)\s*\\，/g, '\\( $1 \\)，');
         match = match.replace(/</g, '&lt;');
         match = match.replace(/>/g, '&gt;');
-        match = match.replace(/%\s/g, '');
 
         // 处理 \bm 命令，将其替换为 \boldsymbol 粗体向量
         match = match.replace(/\\bm\{([^{}]+)\}/g, '\\boldsymbol{$1}');
